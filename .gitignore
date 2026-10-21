@@ -1,0 +1,12 @@
+# Python 临时文件
+*.pyc
+__pycache__/
+
+# 诊断日志（可能含凭据，禁止入库）
+gcm-diagnose.log
+*.log
+
+# 系统垃圾
+Thumbs.db
+desktop.ini
+.DS_Store
