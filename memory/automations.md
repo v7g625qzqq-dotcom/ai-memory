@@ -37,3 +37,42 @@
 - `cleanup_tabs.js` — 清理泄漏标签页 + 登录态探测，可重复执行。
 - `diag_save.js` — 保存链路诊断（抓 POST 请求 + 弹窗提示），定位静默拦截用。
 - `run_v2.js` 增加 `DXM` 环境变量支持（单产品/指定列表试跑）。
+
+---
+
+<!-- source: D:/360Downloads/2026-10-21-14-01-54/.workbuddy/memory/automations/da747ae2-952d-4693-be59-40f2d672094e/memory.md -->
+
+# 自动化执行记录 · 周度记忆快照上传 GitHub
+
+## 2026-10-26（首次执行）
+
+**结果**：✅ 成功。46 文件上传全部成功、0 失败；远端 `main` 47 blob（含初始化遗留 `.gitkeep`）。
+本地 commit `acc9b23 chore: 周度记忆快照`，6 文件 671 行**纯新增**。
+仓库：https://github.com/v7g625qzqq-dotcom/ai-memory
+
+### 本次踩坑（下次直接照抄）
+
+1. **任务给的单根命令会丢历史** —— 只扫 `C:\Users\DELL\WorkBuddy` 会把 10-04/05/06/19/20
+   和 MEMORY.md 覆盖成内容更少的版本，静默删掉 527 行。必须**同时扫 `D:\360Downloads` 下
+   所有含 `.workbuddy/memory` 的工作区**（最新日志都在那边）。
+2. **bash 传参禁用 `eval` + 字符串拼接** —— 反斜杠被转义吃掉，只扫到一半且覆盖了正确内容。
+   改用数组 `ARGS+=(--root "$d")` 正常。
+3. **提交前必须 `git diff --stat` 验纯增量** —— 只有 `+` 没有 `-` 才放行。
+
+### 流程要点（沿用有效做法）
+
+- `merge_memory.py --root` 可多次传（action=append），`--copy-identity` 拉身份三件套。
+- 代理：`local_proxy.py --listen 127.0.0.1:8899 --upstream fan.596189.xyz:443` 后台跑，
+  `netstat` 见 8899 LISTENING 再上传。沙箱会回收子进程，必须后台任务内自拉。
+- 上传：Contents API 逐文件 PUT（**git push 在此环境代理下会挂起**），
+  令牌从 Windows 凭据管理器自动读（`ghp_` 前缀 40 位）。
+- 验证：`api.github.com/.../git/trees/main?recursive=1` 数 blob；
+  `api.github.com/.../contents/{path}` base64 解码与本地逐字节比对
+  （raw.githubusercontent.com 走代理超时，不可用）。
+- 收尾：TaskStop 杀代理 → netstat 确认 8899 释放 → `switch_proxy.py restore` 还原注册表。
+  本次系统代理本就未被改动（ProxyEnable 一直=0），restore 为无害兜底。
+
+### 待改进
+
+- 任务指令里的 `--root` 只有 C 盘一个，建议后续固定为「C 盘 + D 盘各工作区」双根。
+- 可考虑在 `merge_memory.py` 内置 D 盘自动发现逻辑，避免每次手拼参数。
