@@ -65,6 +65,55 @@
 - 结构：hook 池（id 种子随机）+ 特征句（标题提取）+ 规格表（不编造尺寸）+ 燃料运输 + 保养 + 内链（3 专辑 + 2 博客）。翻译 app 自动本地化前台文案。
 - adm2.ps1 已加 winTitle 窗口锁定（必须带，否则可能选错用户窗口）；GSC 5 篇博客待用户登录 Google 后提交（深链 inspect?resource_id=sc-domain%3Apyro8.com&id=...）。
 
+## Chrome 联网代理架构定版（2026-10-22 实测定版）
+- **`C:\chrome-debug` profile 里 FanVPN 扩展残留会覆盖 `--proxy-server`**（Chrome 出口变移动直连）→ Chrome 启动必须带 `--disable-extensions`，之后 `--proxy-server` 才生效。
+- 节点 `fan.596189.xyz:443` 只支持 https 代理协议；且**到 *.gstatic.com / fonts.googleapis.com / google-analytics 阻断**（google.com/search/accounts 正常），Google 登录页会渲染但 JS 不加载、按钮无响应。
+- 定版方案：Chrome `--proxy-server=http://127.0.0.1:8899` + `local_proxy.py` 分流（gstatic 等被断域名**直连 Google 中国边缘 IP 203.208.41.2**，其余走上游 TLS CONNECT）。live.js 已固化此配置。
+- Google 登录页点击要 trusted 事件：JS click/坐标都无效时用 Playwright locator click。
+- 不要用 Windows 系统代理方案：注册表 `https=` 前缀含义是"用 TLS 连代理"，与明文本地转发层冲突。
+
+## 欧盟下单能力（2026-10-23 实测通过）
+- **欧盟 27/27 国全部可下单**，运费 €7.54–23.36（均值 €10.27，测试商品 €10.14）。GB/NO/CH 也可，IS 冰岛无配送方案（本来就没上）。
+- 结账国家下拉 69 国，欧盟 27 国全在；付款方式 = **Credit & debit card（Visa/MC/AMEX/Discover/JCB）+ PayPal**；无追加税费（含税 DDP 一致）。
+- 语言前缀 /fr /de /es /it /nl /pl /pt = 200；/sv /da /el = 404；后台 `language_selector_enabled=false`（前台无语言切换器）。
+- 最大转化隐患：**运费≈货值**，建议满额免运/阶梯运费；CY/MT 运费 €23.36 畸高。
+- **代理节点 fan.365747.xyz 访问不了 `static.staticdj.com`（店匠支付脚本 CDN）→ 付款页「Network error/转圈」**。该 CDN 直连 200/0.84s。验支付方式必须用直连浏览器（host-resolver-rules + profile `C:\chrome-direct` + 端口 9226）。
+- 结账自动化坑：结算按钮被翻译成「查看」（选 `button.cart__checkout`）；token 含连字符（`271326-00000012`）；地址必填是 `input#address`（`#address1` 只是门牌可选）；配送方式是可点 div 不是 radio；步骤链 contact_information→shipping_method→payment_method。
+
+## GSC 资源 ID 与博客收录（2026-10-22）
+- GSC 有效资源 ID 是 **`https://www.pyro8.com/`（网址前缀属性）**，不是 `sc-domain:pyro8.com`（网域属性会 not-verified）。裸进 `search.google.com/search-console` 自动落到正确资源。
+- 5 篇博客已全部被 Google 收录（10-22 确认）：butane-vs-kerosene-vs-electric-arc-lighters / how-to-choose-windproof-lighter / lighter-gift-guide / how-to-refill-butane-lighter / electric-arc-lighter-guide。
+
+## 店匠后台 API 速查（2026-10-23 实战验证，比 UI 稳 10 倍）
+- **后台域是 `chinmiss.myshoplaza.com/admin/...`**（不是 pyro8.com）。**API 必须在该域调用**，在前台域调 `/admin/api/*` 会 401。
+- 页面：`GET /admin/api/pages?page=0&limit=50`（**page 从 0 起**）／`GET|PUT|DELETE /admin/api/pages/{id}`／`POST /admin/api/pages`（`content` 是 HTML 字符串；handle 会按 title 重生成，建完回读 url）
+- 菜单：`GET /admin/api/menus/detail?id=footer|header`／**保存只有 `POST /admin/api/menus/save`**（`PUT .../detail?id=` 一律 404；UI「添加」只改内存，「保存」才提交）。自定义 URL 项：`{id:0,origin_type:-1,type:'web',source_id:'0',url,url_obj:{type:'web',source_id:'0',url,title:''}}`
+- 自定义代码：`POST /admin/api/admin/script-tag`（`{name, device:'all', display_scope:'online', event_type:'custom', src:'<script>..</script>'}`）；入口 `/admin/micro_apps/plugin-scripttag/custom`，表单要 React native setter 写 textarea
+- 路径对照：页面管理 `/admin/smart_apps/store/page`（**不存在 /admin/pages**）｜菜单 `/admin/smart_apps/store/menus` → 点行进 `/admin/smart_apps/store/menu/footer`｜应用商店 `/admin/smart_apps/angora/app_store`
+- 驱动：`live.js`（自拉 Chrome 9223 + 代理，已改绝对路径 require）+ `live_send.py`（通用命令发送器）；`ev.py` 只能发 eval。SPA 内点菜单不刷新、hook 保留；goto 会重置 hook。
+
+## 欧盟合规状态（2026-10-23）
+- 已完成：5 个政策页（privacy/terms/refund-returns/shipping-delivery/legal-notice）＋页脚挂链＋Cookie 同意横幅＋产品页 GPSR 合规块＋Contact 页 WhatsApp 18664598280 与二维码。
+- 站点基础已达标：含税 DDP 价、欧元结算、50+ 国家（含全欧盟）与本地货币。
+- **待办**：欧盟负责人（EU RP，约 €199/年，用户称办好再弄）→ 办好后更新 legal-notice 与 gpsr_block；EN 13869 儿童防护报告；新奇打火机排查；电弧款电池 EPR 注册。
+
+## 无头自动化定版（2026-10-23 推翻旧结论）
+- **能无头做店匠后台**：`HEADLESS=1` + 同一 `C:/chrome-debug` profile + **直连**（`LIVE_PROXY=none`）。cookie 在 headful/headless 间通用；旧结论「无头做不了登录」只对拷到新目录成立。
+- 店匠 SSO 必须直连（走美国代理表单不渲染）；登录=点 `634063666@qq.com` 账户行。
+- 前台 www.pyro8.com 必须 headful（headless 被 Cloudflare 拦）。
+- 工具：`run_once.js <task.js> <json>` 单进程跑（spawn Chrome→CDP→执行→关闭），解决沙箱回收；`lib_login/lib_shot/lib_click`。
+- 营销模块路径：rebate/serval/coupon/sales_pop(+ /setting)/subscription_popups/flashsale/micro_apps/micro-loyalty。
+- 弹窗文案编辑器 = about:blank iframe 里的 TinyMCE（`body.mce-content-body`），只有首行能稳定改。满减活动金额框 React 受控改不动，需手动配。
+- 已上线获客组件：WELCOME10/FRIEND5/THANKS5 三码 + 订阅弹窗（前台已验证）+ 浮窗通知。
+
+## 获客组件现状（2026-10-23 晚）
+- **订阅弹窗已删除**（用户明确讨厌弹窗，看到就关站）→ 以后不要再给用户装弹窗类组件，改内联/页脚表单。
+- 优惠码 3 个在线：WELCOME10（首单10%）/ FRIEND5 / THANKS5；浮窗通知已开。
+- **Omnisend 已完整打通并授权**（2026-10-23 17:00）：账号 `ls634063666@gmail.com` / 密码 `Pyro8Omni2026!` / Brand ID `6adb21a13589fec01408176a`（显示名 Pyro8）/ FREE 套餐 500 封·250 联系人；店匠后台 `/admin/micro_apps/omnisend/home` 显示「已授权」。
+- Omnisend 反自动化三个坑（已全部解决，别再重试旧路）：① 它用 `www.recaptcha.net`，**只有直连通、走任何代理都 20s 超时** → `local_proxy.py` 已加 recaptcha.net 直连分支；② 邮箱确认只标记注册记录，**user 账号在 onboarding 第 3 步 Get started 后才创建**；③ onboarding 的 session **不跨浏览器进程**，必须同一个 run 里跑完 confirm→step1→step2→step3（`t_omni_finish.js`）。
+- 店匠→Omnisend 授权：店匠后台**直连**点「前往授权」→ Omnisend `apps/consent` 点 Authorize access；headless 回调会被 Cloudflare 拦但**授权其实已生效**。
+- 店小秘的速卖通买家邮箱**不可直接群发**（GDPR/AUP/发信域信誉）→ 只能做广告自定义受众 + 包裹卡扫码换同意。
+
 ---
 
 <!-- source: D:/360Downloads/2026-10-05-11-29-16/.workbuddy/memory/MEMORY.md -->
