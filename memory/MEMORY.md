@@ -150,3 +150,56 @@
 - 公告栏文案：左栏「导航」→公告栏（contenteditable div，必须真实键入）；改完点顶栏 common.to_publish 发布+弹窗确认。
 - 首页模板数据：GET /admin/api/theme-edit/{ose}/temp-template-datas/4df98411-4ae5-40c5-aab4-1113f7dcc3ee（ose 每次会话变，来自 create-oseid）；header/页尾是独立模板不在其中。
 - 横幅文案已改 "Duties & Taxes Included. No Extra Fees."（2026-10-06，替代 Free Shipping）。
+
+---
+
+<!-- source: D:/360Downloads/2026-10-21-14-01-54/.workbuddy/memory/MEMORY.md -->
+
+# 项目长期记忆 · 2026-10-21-14-01-54 工作区
+
+## 记忆导出到 GitHub 的固定做法
+
+**仓库**：https://github.com/v7g625qzqq-dotcom/ai-memory（Public，v7g625qzqq-dotcom/ai-memory）
+
+### 铁律一：导出必须双根目录
+
+`merge_memory.py` 的 `--root` 是 `action="append"`，可传多次。**只传一个根会静默丢历史**：
+
+| 根目录 | 覆盖范围 |
+|---|---|
+| `C:\Users\DELL\WorkBuddy` | 08-07 ~ 10-23 的工作区日志（21 个 memory 目录） |
+| `D:\360Downloads\2026-10-XX-XX-XX` | **10-04 ~ 10-25 的最新日志（18 个工作区）** |
+
+只扫 C 盘会把 10-04/05/06/19/20 与 MEMORY.md 覆盖成更少内容的版本，git diff 显示 527 行删除。
+→ 每次导出都用 `find D:/360Downloads -maxdepth 3 -type d -name memory -path "*.workbuddy*"`
+   逐个追加为 `--root`。
+
+### 铁律二：bash 传参禁用 eval
+
+用 `eval` 拼 `--root "C:\\Users\\DELL\\WorkBuddy"` 会被反斜杠转义吃掉，只扫到一半。
+必须用数组：
+
+```bash
+ARGS=(--out . --root "C:\Users\DELL\WorkBuddy" --copy-identity "<personal目录>")
+while IFS= read -r d; do ARGS+=(--root "$d"); done < <(find ... )
+"$PY" merge_memory.py "${ARGS[@]}"
+```
+
+### 铁律三：提交前验纯增量
+
+`git diff --stat` 必须只有 `+` 没有 `-`，才允许提交。
+
+### 上传链路（不要改）
+
+- **必须用 Contents API 逐文件 PUT，`git push` 在此环境代理下会挂起**。
+- 代理：`local_proxy.py --listen 127.0.0.1:8899 --upstream fan.596189.xyz:443`，
+  后台任务启动（沙箱会回收子进程），netstat 确认 8899 LISTENING 再上传。
+- 令牌在 Windows 凭据管理器，`upload_contents.py` 自动读取（`ghp_` 前缀 40 位）。
+- 验证用 `api.github.com/.../git/trees/main?recursive=1` 数 blob +
+  `api.github.com/.../contents/{path}` base64 比对；**raw.githubusercontent.com 走代理超时，不可用**。
+- 收尾必做：TaskStop 杀代理 → netstat 确认 8899 释放 → `switch_proxy.py restore`。
+- 辅助脚本 `verify_upload.py`（工作区根目录）做远端/本地逐字节一致性校验。
+
+### 自动化任务
+
+- 周度快照：`.workbuddy/memory/automations/da747ae2-952d-4693-be59-40f2d672094e/memory.md`
